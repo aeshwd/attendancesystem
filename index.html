@@ -252,14 +252,34 @@
             }
         }
 
-        // Direct Database-backed Student Login
         async function handleStudentLogin(e) {
-            e.preventDefault();
-            const regNo = document.getElementById('stu-reg').value;
-            
-            currentUser = { name: 'Student (' + regNo + ')', role: 'student', id: regNo };
-            launchApp('student');
-        }
+    e.preventDefault();
+    const regNo = document.getElementById('stu-reg').value;
+    const pass = document.getElementById('stu-pass').value;
+
+    // Fetch student profile from Supabase
+    const { data, error } = await supabaseClient
+        .from('profiles')
+        .select('*')
+        .eq('reg_or_email', regNo)
+        .eq('role', 'student')
+        .single();
+
+    if (error || !data) {
+        alert('Student registration number not found.');
+        return;
+    }
+
+    // Check if password matches (defaults to '123456' if not set)
+    const storedPassword = data.password || '123456';
+    if (pass !== storedPassword) {
+        alert('Incorrect password. Please check your credentials.');
+        return;
+    }
+
+    currentUser = data;
+    launchApp('student');
+}
 
         // Direct Database-backed Teacher Login & Signup (Bypassing Auth email restrictions)
         async function handleTeacherAuth(e) {
