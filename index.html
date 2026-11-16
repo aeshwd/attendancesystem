@@ -1,0 +1,458 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sharda Smart Attendance - Section A</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Supabase JS SDK -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        :root {
+            --primary: #2563eb;
+            --primary-dark: #1d4ed8;
+            --success: #16a34a;
+            --warning: #ca8a04;
+            --danger: #dc2626;
+            --bg-color: #f8fafc;
+            --card-bg: #ffffff;
+            --text-main: #1e293b;
+            --text-muted: #64748b;
+            --border: #e2e8f0;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Inter', sans-serif; }
+        body { background-color: var(--bg-color); color: var(--text-main); min-height: 100vh; }
+
+        .hidden { display: none !important; }
+        .flex { display: flex; }
+        .flex-col { flex-direction: column; }
+        .items-center { align-items: center; }
+        .justify-between { justify-content: space-between; }
+        .gap-2 { gap: 0.5rem; }
+        .gap-4 { gap: 1rem; }
+
+        /* Auth Screen */
+        #auth-screen {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background: linear-gradient(135deg, #1e3a8a 0%, #2563eb 100%);
+        }
+
+        .auth-card {
+            background: var(--card-bg);
+            padding: 2.5rem;
+            border-radius: 1rem;
+            width: 100%;
+            max-width: 440px;
+            box-shadow: 0 20px 25px -5px rgb(0 0 0 / 0.1);
+        }
+
+        .auth-card h2 { margin-bottom: 0.5rem; color: var(--text-main); font-size: 1.5rem; }
+        .auth-card p { color: var(--text-muted); margin-bottom: 1.5rem; font-size: 0.875rem; }
+
+        .form-group { margin-bottom: 1.25rem; }
+        .form-group label { display: block; font-size: 0.875rem; font-weight: 500; margin-bottom: 0.5rem; }
+        .form-control {
+            width: 100%; padding: 0.75rem 1rem; border: 1px solid var(--border);
+            border-radius: 0.5rem; font-size: 0.95rem; outline: none; transition: border-color 0.2s;
+        }
+        .form-control:focus { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1); }
+
+        .btn {
+            width: 100%; padding: 0.75rem 1rem; background-color: var(--primary);
+            color: white; border: none; border-radius: 0.5rem; font-weight: 600; cursor: pointer; transition: background-color 0.2s;
+        }
+        .btn:hover { background-color: var(--primary-dark); }
+        .btn-secondary { background-color: #64748b; }
+        .btn-secondary:hover { background-color: #475569; }
+
+        .role-tabs {
+            display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.5rem; margin-bottom: 1.5rem;
+        }
+        .role-tab {
+            padding: 0.5rem; border: 1px solid var(--border); background: white;
+            border-radius: 0.375rem; font-size: 0.8rem; font-weight: 500; cursor: pointer; text-align: center;
+        }
+        .role-tab.active { background: var(--primary); color: white; border-color: var(--primary); }
+
+        /* Main App Layout */
+        #app-container { display: flex; min-height: 100vh; }
+        sidebar { width: 260px; background: white; border-right: 1px solid var(--border); display: flex; flex-direction: column; }
+        .sidebar-brand { padding: 1.5rem; font-size: 1.2rem; font-weight: 700; color: var(--primary); border-bottom: 1px solid var(--border); }
+        .sidebar-menu { list-style: none; padding: 1rem; }
+        .sidebar-menu li {
+            padding: 0.75rem 1rem; border-radius: 0.5rem; cursor: pointer; font-weight: 500;
+            color: var(--text-muted); margin-bottom: 0.25rem; transition: all 0.2s;
+        }
+        .sidebar-menu li:hover, .sidebar-menu li.active { background-color: #eff6ff; color: var(--primary); }
+
+        .main-content { flex: 1; display: flex; flex-direction: column; }
+        header {
+            background: white; padding: 1rem 2rem; border-bottom: 1px solid var(--border);
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .user-badge {
+            font-size: 0.875rem; color: var(--text-muted); background: var(--bg-color);
+            padding: 0.35rem 0.75rem; border-radius: 2rem; border: 1px solid var(--border);
+        }
+        .content-body { padding: 2rem; flex: 1; overflow-y: auto; }
+
+        .dashboard-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1.5rem; margin-bottom: 2rem; }
+        .metric-card { background: white; padding: 1.5rem; border-radius: 0.75rem; border: 1px solid var(--border); box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
+        .metric-card h4 { color: var(--text-muted); font-size: 0.875rem; font-weight: 500; margin-bottom: 0.5rem; }
+        .metric-card .value { font-size: 1.75rem; font-weight: 700; color: var(--text-main); }
+
+        .panel { background: white; border: 1px solid var(--border); border-radius: 0.75rem; padding: 1.5rem; margin-bottom: 1.5rem; }
+        .panel h3 { margin-bottom: 1rem; font-size: 1.1rem; }
+
+        table { width: 100%; border-collapse: collapse; text-align: left; font-size: 0.9rem; }
+        th, td { padding: 0.75rem 1rem; border-bottom: 1px solid var(--border); }
+        th { font-weight: 600; color: var(--text-muted); background: var(--bg-color); }
+        .badge { padding: 0.25rem 0.5rem; border-radius: 0.25rem; font-size: 0.75rem; font-weight: 600; }
+        .badge-success { background: #dcfce7; color: var(--success); }
+        .badge-warning { background: #fef9c3; color: var(--warning); }
+        .badge-danger { background: #fee2e2; color: var(--danger); }
+        
+        .alert-box { padding: 1rem; border-radius: 0.5rem; margin-bottom: 1rem; font-size: 0.9rem; }
+        .alert-warning { background: #fef9c3; color: #854d0e; border: 1px solid #fde047; }
+    </style>
+</head>
+<body>
+
+    <!-- AUTHENTICATION SCREEN -->
+    <div id="auth-screen">
+        <div class="auth-card">
+            <h2>Sharda Smart Attendance</h2>
+            <p id="auth-subtitle">Section A · Secure Portal</p>
+            
+            <div class="role-tabs">
+                <div class="role-tab active" onclick="switchAuthTab('student')">Student Login</div>
+                <div class="role-tab" onclick="switchAuthTab('teacher')">Teacher Portal</div>
+                <div class="role-tab" onclick="switchAuthTab('admin')">Admin Login</div>
+            </div>
+
+            <!-- Student Login Form -->
+            <form id="form-student" onsubmit="handleStudentLogin(event)">
+                <div class="form-group">
+                    <label>Registration Number</label>
+                    <input type="text" id="stu-reg" class="form-control" placeholder="e.g., 24001" required>
+                </div>
+                <div class="form-group">
+                    <label>Password (Provided by Teacher)</label>
+                    <input type="password" id="stu-pass" class="form-control" placeholder="••••••••" required>
+                </div>
+                <button type="submit" class="btn">Sign In as Student</button>
+            </form>
+
+            <!-- Teacher Login / Signup Form -->
+            <form id="form-teacher" class="hidden" onsubmit="handleTeacherAuth(event)">
+                <div id="teacher-signup-fields" class="hidden">
+                    <div class="form-group">
+                        <label>Full Name</label>
+                        <input type="text" id="teach-name" class="form-control" placeholder="Dr. Sharma">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Teacher Email ID</label>
+                    <input type="email" id="teach-email" class="form-control" placeholder="teacher@sharda.ac.in" required>
+                </div>
+                <div class="form-group">
+                    <label>Password</label>
+                    <input type="password" id="teach-pass" class="form-control" placeholder="••••••••" required>
+                </div>
+                <button type="submit" id="teach-submit-btn" class="btn">Sign In</button>
+                <p style="margin-top: 1rem; text-align: center; font-size: 0.85rem;">
+                    <span id="teacher-mode-toggle" style="color: var(--primary); cursor: pointer; text-decoration: underline;" onclick="toggleTeacherMode()">New teacher? Register here (Pending approval)</span>
+                </p>
+            </form>
+
+            <!-- Admin Login Form -->
+            <form id="form-admin" class="hidden" onsubmit="handleAdminLogin(event)">
+                <div class="form-group">
+                    <label>Admin Username / Email</label>
+                    <input type="text" id="admin-email" class="form-control" placeholder="admin@sharda.ac.in" required>
+                </div>
+                <div class="form-group">
+                    <label>Master Password</label>
+                    <input type="password" id="admin-pass" class="form-control" placeholder="••••••••" required>
+                </div>
+                <button type="submit" class="btn">Admin Master Sign In</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- MAIN APP CONTAINER -->
+    <div id="app-container" class="hidden">
+        <sidebar>
+            <div class="sidebar-brand">Sharda Section A</div>
+            <ul class="sidebar-menu" id="sidebar-menu">
+                <!-- Dynamically populated based on logged-in role -->
+            </ul>
+        </sidebar>
+
+        <div class="main-content">
+            <header>
+                <h2 id="page-title">Dashboard</h2>
+                <div class="flex items-center gap-4">
+                    <span class="user-badge" id="user-display-badge">User Profile</span>
+                    <button class="btn btn-secondary" style="width: auto; padding: 0.4rem 0.8rem; font-size: 0.85rem;" onclick="logout()">Logout</button>
+                </div>
+            </header>
+
+            <div class="content-body" id="content-body">
+                <!-- Dynamic Content Views Loaded Here -->
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ========================================================
+        // SUPABASE CONFIGURATION (Connected with your Publishable Key)
+        // ========================================================
+        const SUPABASE_URL = 'https://ozahedbkrcsbosatbxoa.supabase.co'; // Replace with your Project URL from Supabase Settings > API
+        const SUPABASE_ANON_KEY = 'sb_publishable_ln1oSZAU12QFqICsFy3Btw_DzO8oKU5';
+        
+        let supabaseClient = null;
+        if (SUPABASE_URL.includes('supabase.co')) {
+            supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        }
+
+        let currentUser = null;
+        let currentRole = 'student';
+        let isTeacherSignupMode = false;
+
+        function switchAuthTab(role) {
+            currentRole = role;
+            document.querySelectorAll('.role-tab').forEach(t => t.classList.remove('active'));
+            event.target.classList.add('active');
+
+            document.getElementById('form-student').classList.add('hidden');
+            document.getElementById('form-teacher').classList.add('hidden');
+            document.getElementById('form-admin').classList.add('hidden');
+
+            if (role === 'student') document.getElementById('form-student').classList.remove('hidden');
+            if (role === 'teacher') document.getElementById('form-teacher').classList.remove('hidden');
+            if (role === 'admin') document.getElementById('form-admin').classList.remove('hidden');
+        }
+
+        function toggleTeacherMode() {
+            isTeacherSignupMode = !isTeacherSignupMode;
+            const fields = document.getElementById('teacher-signup-fields');
+            const btn = document.getElementById('teach-submit-btn');
+            const toggle = document.getElementById('teacher-mode-toggle');
+
+            if (isTeacherSignupMode) {
+                fields.classList.remove('hidden');
+                btn.innerText = "Register Teacher Account";
+                toggle.innerText = "Already have an approved account? Sign in here";
+            } else {
+                fields.classList.add('hidden');
+                btn.innerText = "Sign In";
+                toggle.innerText = "New teacher? Register here (Pending approval)";
+            }
+        }
+
+        async function handleStudentLogin(e) {
+            e.preventDefault();
+            const regNo = document.getElementById('stu-reg').value;
+            const pass = document.getElementById('stu-pass').value;
+
+            if (!supabaseClient) {
+                currentUser = { name: 'Student A (' + regNo + ')', role: 'student', id: regNo };
+                launchApp('student');
+                return;
+            }
+
+            const { data, error } = await supabaseClient.auth.signInWithPassword({ email: `${regNo}@sharda.student`, password: pass });
+            if (error) { alert('Login failed: ' + error.message); return; }
+            currentUser = data.user;
+            launchApp('student');
+        }
+
+        async function handleTeacherAuth(e) {
+            e.preventDefault();
+            const email = document.getElementById('teach-email').value;
+            const pass = document.getElementById('teach-pass').value;
+
+            if (!supabaseClient) {
+                if (isTeacherSignupMode) {
+                    alert('Teacher registration submitted! Awaiting Admin approval.');
+                    toggleTeacherMode();
+                } else {
+                    currentUser = { name: email, role: 'teacher' };
+                    launchApp('teacher');
+                }
+                return;
+            }
+
+            if (isTeacherSignupMode) {
+                const name = document.getElementById('teach-name').value;
+                const { data, error } = await supabaseClient.auth.signUp({ email, password: pass });
+                if (error) { alert(error.message); return; }
+                
+                await supabaseClient.from('profiles').insert([{ id: data.user.id, reg_or_email: email, full_name: name, role: 'teacher', status: 'pending' }]);
+                alert('Registration successful! Your account is pending Admin approval.');
+                toggleTeacherMode();
+            } else {
+                const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password: pass });
+                if (error) { alert(error.message); return; }
+                
+                const { data: profile } = await supabaseClient.from('profiles').select('*').eq('id', data.user.id).single();
+                if (profile && profile.status !== 'approved') {
+                    alert('Your teacher account is still pending Admin approval.');
+                    await supabaseClient.auth.signOut();
+                    return;
+                }
+                currentUser = profile;
+                launchApp('teacher');
+            }
+        }
+
+        function handleAdminLogin(e) {
+            e.preventDefault();
+            const user = document.getElementById('admin-email').value;
+            currentUser = { name: 'Admin (' + user + ')', role: 'admin' };
+            launchApp('admin');
+        }
+
+        function logout() {
+            if (supabaseClient) supabaseClient.auth.signOut();
+            document.getElementById('app-container').classList.add('hidden');
+            document.getElementById('auth-screen').classList.remove('hidden');
+        }
+
+        function launchApp(role) {
+            document.getElementById('auth-screen').classList.add('hidden');
+            document.getElementById('app-container').classList.remove('hidden');
+            buildSidebar(role);
+            loadDashboardView(role === 'student' ? 'student-dash' : role === 'teacher' ? 'teacher-dash' : 'admin-dash');
+        }
+
+        function buildSidebar(role) {
+            const menu = document.getElementById('sidebar-menu');
+            if (role === 'student') {
+                menu.innerHTML = `
+                    <li class="active" onclick="switchNav('student-dash', this)">My Attendance</li>
+                    <li onclick="switchNav('student-history', this)">Lecture History</li>
+                `;
+                document.getElementById('user-display-badge').innerText = "Student Portal · Section A";
+            } else if (role === 'teacher') {
+                menu.innerHTML = `
+                    <li class="active" onclick="switchNav('teacher-dash', this)">Live Lecture PIN Panel</li>
+                    <li onclick="switchNav('reports', this)">Attendance Reports</li>
+                `;
+                document.getElementById('user-display-badge').innerText = "Teacher Control Panel";
+            } else {
+                menu.innerHTML = `
+                    <li class="active" onclick="switchNav('admin-dash', this)">Teacher Approvals</li>
+                    <li onclick="switchNav('admin-roster', this)">Manage Students & Roster</li>
+                `;
+                document.getElementById('user-display-badge').innerText = "Master Administrator";
+            }
+        }
+
+        function switchNav(view, el) {
+            document.querySelectorAll('.sidebar-menu li').forEach(li => li.classList.remove('active'));
+            if(el) el.classList.add('active');
+            loadDashboardView(view);
+        }
+
+        function loadDashboardView(view) {
+            const container = document.getElementById('content-body');
+            document.getElementById('page-title').innerText = view.replace('-', ' ').toUpperCase();
+
+            if (view === 'student-dash') {
+                container.innerHTML = `
+                    <div class="dashboard-grid">
+                        <div class="metric-card"><h4>Overall Attendance</h4><div class="value" style="color: var(--success);">94.2%</div></div>
+                        <div class="metric-card"><h4>Lectures Attended</h4><div class="value">49 / 52</div></div>
+                        <div class="metric-card"><h4>Review Required</h4><div class="value" style="color: var(--warning);">0</div></div>
+                    </div>
+
+                    <div class="panel">
+                        <h3>🟢 Active Lecture: Foundation of Nursing (Room 204)</h3>
+                        <p style="color: var(--text-muted); margin-bottom: 1.5rem;">Instructor: Dr. Sharma · Section A</p>
+                        
+                        <div class="form-group" style="max-width: 400px;">
+                            <label>Enter 6-Digit Checkpoint PIN</label>
+                            <div class="flex gap-2">
+                                <input type="text" id="student-pin-box" class="form-control" placeholder="e.g. 583921" maxlength="6">
+                                <button class="btn" style="width: auto;" onclick="submitStudentPin()">Verify PIN</button>
+                            </div>
+                        </div>
+
+                        <h4 style="margin-top: 2rem; margin-bottom: 1rem; font-size: 0.95rem;">Today's 4-Stage Verification Progress</h4>
+                        <div style="display: flex; gap: 1rem;">
+                            <div class="badge badge-success" style="padding: 0.5rem 1rem;">1. Initial: Verified ✓</div>
+                            <div class="badge badge-success" style="padding: 0.5rem 1rem;">2. Check 1: Verified ✓</div>
+                            <div class="badge badge-warning" style="padding: 0.5rem 1rem;">3. Check 2: Active Now</div>
+                            <div class="badge" style="background: var(--border); padding: 0.5rem 1rem;">4. Final: Pending</div>
+                        </div>
+                    </div>
+                `;
+            } else if (view === 'teacher-dash') {
+                container.innerHTML = `
+                    <div class="dashboard-grid">
+                        <div class="metric-card"><h4>Active Session PIN</h4><div class="value" style="color: var(--primary);">583921</div></div>
+                        <div class="metric-card"><h4>Verified Students</h4><div class="value" style="color: var(--success);">45 / 50</div></div>
+                        <div class="metric-card"><h4>Current Checkpoint</h4><div class="value">Random Check 1</div></div>
+                    </div>
+
+                    <div class="panel flex gap-4" style="align-items: center;">
+                        <button class="btn" style="background-color: var(--success);" onclick="alert('Generated new checkpoint PIN: 849201')">Generate Next Random PIN</button>
+                        <button class="btn" style="background-color: var(--danger);" onclick="alert('Lecture closed.')">End Lecture Session</button>
+                    </div>
+
+                    <div class="panel">
+                        <h3>Section A Live Attendance Tracker</h3>
+                        <table>
+                            <thead><tr><th>Reg No.</th><th>Student Name</th><th>Initial</th><th>Check 1</th><th>Check 2</th><th>Final</th><th>Status</th></tr></thead>
+                            <tbody>
+                                <tr><td>24001</td><td>Student A</td><td><span class="badge badge-success">✓</span></td><td><span class="badge badge-success">✓</span></td><td><span class="badge badge-warning">...</span></td><td>-</td><td><span class="badge badge-success">Present</span></td></tr>
+                                <tr><td>24002</td><td>Student B</td><td><span class="badge badge-success">✓</span></td><td><span class="badge badge-danger">✗</span></td><td><span class="badge badge-success">✓</span></td><td>-</td><td><span class="badge badge-warning">Review Needed</span></td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                `;
+            } else if (view === 'admin-dash') {
+                container.innerHTML = `
+                    <div class="alert-box alert-warning">
+                        <strong>Admin Approval Panel:</strong> Review new faculty signups before they can start lectures and generate attendance PINs.
+                    </div>
+                    <div class="panel">
+                        <h3>Pending Teacher Account Approvals</h3>
+                        <table>
+                            <thead><tr><th>Teacher Name</th><th>Email</th><th>Requested Date</th><th>Action</th></tr></thead>
+                            <tbody>
+                                <tr>
+                                    <td>Dr. R. K. Gupta</td>
+                                    <td>gupta.nursing@sharda.ac.in</td>
+                                    <td>Today, 11:40 AM</td>
+                                    <td>
+                                        <button class="btn" style="width: auto; padding: 0.25rem 0.75rem; background: var(--success);" onclick="alert('Teacher Approved!')">Approve</button>
+                                        <button class="btn" style="width: auto; padding: 0.25rem 0.75rem; background: var(--danger);">Reject</button>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                `;
+            } else {
+                container.innerHTML = `<div class="panel"><h3>Attendance Reports & Logs</h3><p>Export options for Section A records.</p></div>`;
+            }
+        }
+
+        function submitStudentPin() {
+            const pin = document.getElementById('student-pin-box').value;
+            if (pin.length === 6) {
+                alert(`PIN ${pin} accepted successfully! Checkpoint verified.`);
+            } else {
+                alert('Please enter a valid 6-digit PIN.');
+            }
+        }
+    </script>
+</body>
+</html>
